@@ -1360,8 +1360,6 @@ public:
 
     void update()
     {
-        int dummyInteger = 0;
-
         auto previousFrameTime = std::chrono::steady_clock::now();
         while (!m_window.shouldClose()) {
             const auto currentFrameTime = std::chrono::steady_clock::now();
@@ -1388,129 +1386,193 @@ public:
             }
             m_fireKeyWasDown = fireKeyDown;
 
-            ImGui::Begin("Dragon Tech Demo");
-            ImGui::Text("Flight Controls");
-            ImGui::Checkbox("Fire Breathing", &m_fireBreathing);
-            ImGui::Checkbox("Tail Ember Trail", &m_tailEmberTrail);
-            ImGui::Text("1: Toggle fire breathing | Mouth Open: %.2f", m_mouthOpen);
-            ImGui::Text("Animation");
-            ImGui::Checkbox("Responsive Flight Animation", &m_responsiveFlightAnimation);
-            if (ImGui::Checkbox("Animate Dragon Body", &m_animateDragonBody) && m_animateDragonBody)
-                m_bodyAnimationBlend = 0.0f;
-            const char* flightModes[] = { "Manual", "Autopilot" };
-            int selectedFlightMode = static_cast<int>(m_flightMode);
-            const bool flightModeChanged = ImGui::Combo("Flight Mode", &selectedFlightMode, flightModes, 2);
-            if (flightModeChanged) {
-                m_flightMode = static_cast<FlightMode>(selectedFlightMode);
-                if (m_flightMode == FlightMode::Autopilot) {
-                    m_autopilotElapsedSeconds = 0.0;
-                    m_autopilotProgress = 0.0f;
-                    m_dragonPosition = m_flightPath.front().p0;
-                }
-            }
-            ImGui::Text("Entering Autopilot restarts at the first path point.");
-            if (m_flightMode == FlightMode::Manual) {
-                ImGui::Text("W/S: Forward/Backward | A/D: Turn Left/Right | Q/E: Down/Up");
-                if (m_cameraMode == CameraMode::FreeCamera)
-                    ImGui::Text("Free Camera controls the camera; manual dragon flight is paused.");
-            } else {
-                ImGui::Text("Autopilot ignores WASD/Q/E; bounds apply to Manual.");
-            }
-            const bool constraintsChanged = ImGui::Checkbox("Constrain Flight to Terrain", &m_constrainFlightToTerrain);
-            ImGui::Checkbox("Mountain Collision Detection", &m_mountainCollision);
-            const bool resetDragon = ImGui::Button("Reset Dragon Position");
-            if (m_flightMode == FlightMode::Autopilot) {
-                const int segment = static_cast<int>(m_autopilotProgress);
-                ImGui::Text("Segment %d/3 | t: %.3f | 15 s/loop", segment + 1,
-                    m_autopilotProgress - static_cast<float>(segment));
-            }
-            ImGui::Separator();
-
-            ImGui::Text("Camera Controls");
-            const char* cameraModes[] = { "Follow Dragon", "Free Camera", "Top-Down" };
-            int selectedCamera = static_cast<int>(m_cameraMode);
-            if (ImGui::Combo("Camera mode", &selectedCamera, cameraModes, 3)) {
-                m_cameraMode = static_cast<CameraMode>(selectedCamera);
-                m_cameraDragging = false;
-            }
-            if (m_cameraMode == CameraMode::FollowDragon)
-                ImGui::Text("Hold LMB: Orbit around dragon | Wheel: Zoom");
-            else if (m_cameraMode == CameraMode::FreeCamera)
-                ImGui::Text("WASD: Move camera | Q/E: Down/Up | Hold LMB: Look around");
-            else
-                ImGui::Text("WASD/QE: Control dragon");
-            ImGui::Text("F1: Follow | F2: Free | F3: Top-Down");
-            if (ImGui::Button("Reset Camera View"))
-                resetCameraView();
-            ImGui::Separator();
-
-            ImGui::Text("Graphics Effects");
-            ImGui::BeginDisabled(m_automaticDayNight);
-            ImGui::SliderFloat("Time of Day", &m_timeOfDay, 0.0f, 24.0f, "%.2f h");
-            ImGui::EndDisabled();
-            ImGui::Checkbox("Automatic Day/Night Cycle", &m_automaticDayNight);
-            ImGui::Checkbox("Fire Light", &m_fireLight);
-            ImGui::Checkbox("Fire Light Shadows", &m_fireLightShadows);
-            ImGui::SliderFloat("Fire Beam Intensity", &m_fireLightIntensity, 0.0f, 30.0f);
-            ImGui::SliderFloat("Fire Beam Range", &m_fireLightRange, 1.0f, 8.0f);
-            ImGui::Checkbox("Bloom", &m_bloomEnabled);
-            ImGui::BeginDisabled(!m_bloomEnabled);
-            ImGui::SliderFloat("Bloom Strength", &m_bloomStrength, 0.0f, 1.0f);
-            ImGui::EndDisabled();
-            ImGui::Checkbox("Show Minimap", &m_showMinimap);
-            ImGui::Checkbox("Show Water", &m_showWater);
-            ImGui::SliderFloat("Water Wave Strength", &m_waterWaveStrength, 0.0f, 0.04f, "%.3f");
-            ImGui::SliderFloat("Water Wave Speed", &m_waterWaveSpeed, 0.0f, 2.0f, "%.2f");
-            ImGui::Checkbox("Show Lava Lake", &m_showLavaLake);
-            ImGui::Checkbox("Mountain Lava Streams", &m_showLavaStreams);
-            ImGui::Checkbox("Show Ground", &m_showGround);
-            ImGui::Checkbox("Show B\xC3\xA9zier Path", &m_showBezierPath);
-            ImGui::Checkbox("Use material if no texture", &m_useMaterial);
-            ImGui::Checkbox("Dragon Scale Texture", &m_useDragonScaleTexture);
-            ImGui::Checkbox("Material Property Maps", &m_usePbrPropertyMaps);
-            ImGui::Checkbox("Dragon Normal Mapping", &m_useDragonNormalMapping);
-            ImGui::SliderFloat("Normal Strength", &m_dragonNormalStrength, 0.0f, 2.0f);
-            ImGui::Checkbox("Environment Reflections", &m_environmentReflections);
-            ImGui::SliderFloat("Reflection Strength", &m_reflectionStrength, 0.0f, 1.0f);
-            ImGui::Checkbox("Shadow Mapping", &m_shadowMapping);
-            ImGui::Checkbox("PCF Filtering", &m_shadowPcf);
-
-            ImGui::Checkbox("Enable Lighting", &m_enableLighting);
-
-            const char* shadingModels[] = { "Blinn-Phong", "PBR" };
-            ImGui::Combo("Shading Model", &m_shadingModel, shadingModels, 2);
-            if (m_shadingModel == 0) {
-                ImGui::Text("Blinn-Phong controls");
-                ImGui::SliderFloat("Ambient Strength", &m_ambientStrength, 0.0f, 1.0f);
-                ImGui::SliderFloat("Diffuse Strength", &m_diffuseStrength, 0.0f, 1.0f);
-                ImGui::SliderFloat("Specular Strength", &m_specularStrength, 0.0f, 1.0f);
-                ImGui::SliderFloat("Shininess", &m_lightingShininess, 1.0f, 128.0f);
-            } else {
-                ImGui::Text("PBR materials: nonmetallic red / metallic gold");
-                ImGui::SliderFloat("Body Roughness", &m_jadeRoughness, 0.08f, 1.0f);
-                ImGui::SliderFloat("Gold Roughness", &m_goldRoughness, 0.08f, 1.0f);
-            }
-            ImGui::Separator();
-
-            if (ImGui::CollapsingHeader("Debug")) {
+            bool flightModeChanged = false;
+            bool constraintsChanged = false;
+            bool resetDragon = false;
+            const ImVec2 screen = ImGui::GetIO().DisplaySize;
+            const float maximumHeight = std::min(760.0f, std::max(300.0f, screen.y - 28.0f));
+            ImGui::SetNextWindowSize(ImVec2(420, std::min(680.0f, maximumHeight)), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowSizeConstraints(ImVec2(360, 300), ImVec2(560, maximumHeight));
+            if (ImGui::Begin("Dragon Tech Demo")) {
+                const ImVec4 mandatoryColor(0.95f, 0.27f, 0.25f, 1.0f);
+                const ImVec4 additionalColor(0.28f, 0.60f, 1.0f, 1.0f);
+                const ImU32 mandatoryLine = ImGui::ColorConvertFloat4ToU32(mandatoryColor);
+                const ImU32 additionalLine = ImGui::ColorConvertFloat4ToU32(additionalColor);
+                auto featureHeading = [](const char* label, ImU32 color) {
+                    const ImVec2 start = ImGui::GetCursorScreenPos();
+                    ImGui::Indent(7.0f);
+                    const bool open = ImGui::CollapsingHeader(label);
+                    ImGui::Unindent(7.0f);
+                    const ImVec2 lineStart(start.x + 1.0f, start.y + 2.0f);
+                    const ImVec2 lineEnd(start.x + 1.0f, start.y + ImGui::GetFrameHeight() - 2.0f);
+                    ImGui::GetWindowDrawList()->AddLine(lineStart, lineEnd, color, 2.0f);
+                    return open;
+                };
+                ImGui::TextColored(mandatoryColor, "Red = Mandatory");
+                ImGui::SameLine();
+                ImGui::TextUnformatted("|");
+                ImGui::SameLine();
+                ImGui::TextColored(additionalColor, "Blue = Additional");
+                ImGui::Separator();
+                ImGui::TextUnformatted("Flight / Reset");
                 const char* dragonModels[] = { "Original Dragon", "Segmented Dragon" };
+                ImGui::SetNextItemWidth(170.0f);
                 ImGui::Combo("Dragon model", &m_dragonModel, dragonModels, 2);
-                ImGui::Text("Manual joint sliders apply only when body animation is off.");
-                ImGui::BeginDisabled(m_animateDragonBody);
-                ImGui::SliderAngle("Body Joint 1 Angle", &m_manualBodyJointAngles[0], -30.0f, 30.0f);
-                ImGui::SliderAngle("Body Joint 4 Angle", &m_manualBodyJointAngles[3], -30.0f, 30.0f);
-                ImGui::EndDisabled();
-                ImGui::Text("Dragon X position: %.3f", m_dragonPosition.x);
-                ImGui::Text("Dragon Y position: %.3f", m_dragonPosition.y);
-                ImGui::Text("Dragon Z position: %.3f", m_dragonPosition.z);
-                ImGui::Text("Delta time: %.3f ms", m_deltaTime * 1000.0f);
-                float framesPerSecond = 0.0f;
-                if (m_deltaTime > 0.0f) {
-                    framesPerSecond = 1.0f / m_deltaTime;
+                resetDragon = ImGui::Button("Reset Dragon Position");
+                ImGui::TextWrapped("W/S: Forward/Back | A/D: Turn | Q/E: Down/Up | 1: Fire");
+                if (m_cameraMode == CameraMode::FreeCamera && m_flightMode == FlightMode::Manual)
+                    ImGui::TextWrapped("Free Camera moves the camera; manual dragon flight is paused.");
+                if (m_flightMode == FlightMode::Autopilot)
+                    ImGui::TextWrapped("Autopilot active. Change Flight Mode in Additional 1.");
+                ImGui::Separator();
+
+                // Keep flight/reset controls visible while the feature list scrolls.
+                ImGui::BeginChild("Presentation Features", ImVec2(0, 0), false);
+                ImGui::PushItemWidth(145.0f);
+                ImGui::TextColored(mandatoryColor, "Mandatory Requirements");
+                if (featureHeading("1. Multiple Viewpoints", mandatoryLine)) {
+                    const char* cameraModes[] = { "Follow Dragon", "Free Camera", "Top-Down" };
+                    int selectedCamera = static_cast<int>(m_cameraMode);
+                    if (ImGui::Combo("Camera mode", &selectedCamera, cameraModes, 3)) {
+                        m_cameraMode = static_cast<CameraMode>(selectedCamera);
+                        m_cameraDragging = false;
+                    }
+                    ImGui::TextWrapped("F1: Follow | F2: Free | F3: Top-Down");
+                    if (m_cameraMode == CameraMode::FollowDragon)
+                        ImGui::TextWrapped("Hold LMB to orbit; mouse wheel to zoom.");
+                    else if (m_cameraMode == CameraMode::FreeCamera)
+                        ImGui::TextWrapped("WASD: Move camera | Q/E: Down/Up | Hold LMB: Look");
+                    else
+                        ImGui::TextWrapped("WASD/QE control the dragon.");
+                    if (ImGui::Button("Reset Camera View"))
+                        resetCameraView();
                 }
-                ImGui::Text("FPS: %.1f", framesPerSecond);
-                ImGui::InputInt("This is an integer input", &dummyInteger);
-                ImGui::Text("Value is: %i", dummyInteger);
+                if (featureHeading("2. Advanced Shading", mandatoryLine)) {
+                    ImGui::Checkbox("Enable Lighting", &m_enableLighting);
+                    const char* shadingModels[] = { "Blinn-Phong", "PBR" };
+                    ImGui::Combo("Shading Model", &m_shadingModel, shadingModels, 2);
+                    if (m_shadingModel == 0) {
+                        ImGui::SliderFloat("Ambient Strength", &m_ambientStrength, 0.0f, 1.0f);
+                        ImGui::SliderFloat("Diffuse Strength", &m_diffuseStrength, 0.0f, 1.0f);
+                        ImGui::SliderFloat("Specular Strength", &m_specularStrength, 0.0f, 1.0f);
+                        ImGui::SliderFloat("Shininess", &m_lightingShininess, 1.0f, 128.0f);
+                    } else {
+                        ImGui::TextWrapped("PBR: nonmetallic red body / metallic gold accents.");
+                        ImGui::SliderFloat("Body Roughness", &m_jadeRoughness, 0.08f, 1.0f);
+                        ImGui::SliderFloat("Gold Roughness", &m_goldRoughness, 0.08f, 1.0f);
+                        if (m_usePbrPropertyMaps)
+                            ImGui::TextWrapped("Body roughness is supplied by Material Property Maps while enabled.");
+                    }
+                }
+                if (featureHeading("3. Material Textures", mandatoryLine)) {
+                    ImGui::Checkbox("Dragon Scale Texture", &m_useDragonScaleTexture);
+                    ImGui::Checkbox("Material Property Maps", &m_usePbrPropertyMaps);
+                    ImGui::Checkbox("Use material if no texture", &m_useMaterial);
+                }
+                if (featureHeading("4. Normal Mapping", mandatoryLine)) {
+                    ImGui::Checkbox("Dragon Normal Mapping", &m_useDragonNormalMapping);
+                    ImGui::SliderFloat("Normal Strength", &m_dragonNormalStrength, 0.0f, 2.0f);
+                }
+                if (featureHeading("5. Environment Mapping", mandatoryLine)) {
+                    ImGui::Checkbox("Environment Reflections", &m_environmentReflections);
+                    ImGui::SliderFloat("Reflection Strength", &m_reflectionStrength, 0.0f, 1.0f);
+                }
+                if (featureHeading("6. B\xC3\xA9zier Curves", mandatoryLine)) {
+                    ImGui::Checkbox("Show B\xC3\xA9zier Path", &m_showBezierPath);
+                    ImGui::TextWrapped("Three connected cubic curves. Flight Mode is in Additional 1.");
+                }
+                if (featureHeading("7. Hierarchical Transformations", mandatoryLine)) {
+                    if (ImGui::Checkbox("Animate Dragon Body", &m_animateDragonBody) && m_animateDragonBody)
+                        m_bodyAnimationBlend = 0.0f;
+                    ImGui::Checkbox("Responsive Flight Animation", &m_responsiveFlightAnimation);
+                    ImGui::TextWrapped("Disable body animation to adjust joints manually.");
+                    ImGui::BeginDisabled(m_animateDragonBody);
+                    ImGui::SliderAngle("Body Joint 1 Angle", &m_manualBodyJointAngles[0], -30.0f, 30.0f);
+                    ImGui::SliderAngle("Body Joint 4 Angle", &m_manualBodyJointAngles[3], -30.0f, 30.0f);
+                    ImGui::EndDisabled();
+                }
+
+                ImGui::Spacing();
+                ImGui::TextColored(additionalColor, "Additional Features");
+                if (featureHeading("1. Constant-Speed B\xC3\xA9zier Autopilot", additionalLine)) {
+                    const char* flightModes[] = { "Manual", "Autopilot" };
+                    int selectedFlightMode = static_cast<int>(m_flightMode);
+                    flightModeChanged = ImGui::Combo("Flight Mode", &selectedFlightMode, flightModes, 2);
+                    if (flightModeChanged) {
+                        m_flightMode = static_cast<FlightMode>(selectedFlightMode);
+                        if (m_flightMode == FlightMode::Autopilot) {
+                            m_autopilotElapsedSeconds = 0.0;
+                            m_autopilotProgress = 0.0f;
+                            m_dragonPosition = m_flightPath.front().p0;
+                        }
+                    }
+                    ImGui::TextWrapped("Arc-length lookup; 15 seconds per loop. Entering Autopilot restarts the path.");
+                    if (m_flightMode == FlightMode::Autopilot) {
+                        const int segment = static_cast<int>(m_autopilotProgress);
+                        ImGui::Text("Segment %d/3 | t: %.3f", segment + 1,
+                            m_autopilotProgress - static_cast<float>(segment));
+                        ImGui::TextWrapped("Autopilot ignores WASD/Q/E; bounds apply to Manual.");
+                    }
+                }
+                if (featureHeading("2. Multiple Light Shadows", additionalLine)) {
+                    ImGui::Checkbox("Shadow Mapping", &m_shadowMapping);
+                    ImGui::Checkbox("PCF Filtering", &m_shadowPcf);
+                    ImGui::Checkbox("Fire Light", &m_fireLight);
+                    ImGui::Checkbox("Fire Light Shadows", &m_fireLightShadows);
+                    ImGui::SliderFloat("Fire Beam Intensity", &m_fireLightIntensity, 0.0f, 30.0f);
+                    ImGui::SliderFloat("Fire Beam Range", &m_fireLightRange, 1.0f, 8.0f);
+                }
+                if (featureHeading("3. GPU Particle Effects", additionalLine)) {
+                    ImGui::Checkbox("Fire Breathing", &m_fireBreathing);
+                    ImGui::Checkbox("Tail Ember Trail", &m_tailEmberTrail);
+                    ImGui::TextWrapped("1: Toggle fire. GPU ping-pong particle updates and billboard rendering.");
+                }
+                if (featureHeading("4. Procedural Terrain", additionalLine)) {
+                    ImGui::Checkbox("Show Ground", &m_showGround);
+                    ImGui::TextWrapped("Procedural volcano heightfield. Show Ground also controls props, lava and water visibility.");
+                }
+                if (featureHeading("5. Procedural Environment Props", additionalLine)) {
+                    ImGui::TextWrapped("Procedurally generated rocks and grass, batched by material. Visibility follows Show Ground in section 4.");
+                }
+                if (featureHeading("6. Bloom Post-Processing", additionalLine)) {
+                    ImGui::Checkbox("Bloom", &m_bloomEnabled);
+                    ImGui::BeginDisabled(!m_bloomEnabled);
+                    ImGui::SliderFloat("Bloom Strength", &m_bloomStrength, 0.0f, 1.0f);
+                    ImGui::EndDisabled();
+                }
+                if (featureHeading("7. Procedural Water", additionalLine)) {
+                    ImGui::Checkbox("Show Water", &m_showWater);
+                    ImGui::SliderFloat("Water Wave Strength", &m_waterWaveStrength, 0.0f, 0.04f, "%.3f");
+                    ImGui::SliderFloat("Water Wave Speed", &m_waterWaveSpeed, 0.0f, 2.0f, "%.2f");
+                }
+                if (featureHeading("8. Animated Textures", additionalLine)) {
+                    ImGui::Checkbox("Show Lava Lake", &m_showLavaLake);
+                    ImGui::Checkbox("Mountain Lava Streams", &m_showLavaStreams);
+                    ImGui::TextWrapped("Lava: 24 texture frames switched at 12 FPS.");
+                }
+                if (featureHeading("9. Day/Night Lighting", additionalLine)) {
+                    ImGui::BeginDisabled(m_automaticDayNight);
+                    ImGui::SliderFloat("Time of Day", &m_timeOfDay, 0.0f, 24.0f, "%.2f h");
+                    ImGui::EndDisabled();
+                    ImGui::Checkbox("Automatic Day/Night Cycle", &m_automaticDayNight);
+                }
+                if (featureHeading("10. Minimap", additionalLine)) {
+                    ImGui::Checkbox("Show Minimap", &m_showMinimap);
+                }
+                if (featureHeading("11. Collision Detection", additionalLine)) {
+                    constraintsChanged = ImGui::Checkbox("Constrain Flight to Terrain", &m_constrainFlightToTerrain);
+                    ImGui::Checkbox("Mountain Collision Detection", &m_mountainCollision);
+                    ImGui::TextWrapped("Manual flight: terrain collision and world-position limits.");
+                }
+                if (featureHeading("12. GPU Linear Blend Skinning", additionalLine)) {
+                    ImGui::TextWrapped("Eight-bone body; two weighted bone transforms per vertex. Animation controls are in Mandatory 7.");
+                }
+                if (featureHeading("13. GPU Blend Shapes", additionalLine)) {
+                    ImGui::TextWrapped("The jaw and lower teeth blend between closed/open vertex targets. Use 1 or Fire Breathing in section 3.");
+                    ImGui::Text("Mouth Open: %.2f", m_mouthOpen);
+                }
+                ImGui::PopItemWidth();
+                ImGui::EndChild();
             }
             ImGui::End();
 
